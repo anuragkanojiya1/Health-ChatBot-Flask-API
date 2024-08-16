@@ -1,13 +1,13 @@
-import sys
+import os
 from flask import Flask, request, jsonify
 from openai import OpenAI
-from mindsdb_sdk.utils.mind import create_mind
+from mindsdb_sdk.utils.mind import create_mind, DatabaseConfig
 from config import api_key
-import os
-
-apiKey = os.getenv('apiKey')
 
 app = Flask(__name__)
+
+# Environment variable for the API key
+api_key = os.getenv('apiKey')
 
 base_url = 'https://llm.mdb.ai/'
 client = OpenAI(
@@ -17,27 +17,33 @@ client = OpenAI(
 
 mind_name = '_yodb_mind'
 
+# Define the database configuration
+pg_config = DatabaseConfig(
+    description='Demo data',
+    type='postgres',
+    connection_args={
+        'user': 'demo_user',
+        'password': 'demo_password',
+        'host': 'samples.mindsdb.com',
+        'port': '5432',
+        'database': 'demo',
+        'schema': 'demo_data'
+    },
+    tables=['house_sales']
+)
+
 # Initialize the mind
 try:
-    existing_minds = client.beta.minds.list()
+    # Create or verify the mind
+    existing_minds = client.beta.minds.list()  # Use the updated method to list minds
     mind_exists = any(mind.name == mind_name for mind in existing_minds.data)
 
     if not mind_exists:
         mind = create_mind(
             name=mind_name,
-            description='Whales',
             base_url=base_url,
             api_key=api_key,
-            model='gpt-4',
-            data_source_type='postgres',
-            data_source_connection_args={
-                'user': 'demo_user',
-                'password': 'demo_password',
-                'host': 'samples.mindsdb.com',
-                'port': '5432',
-                'database': 'demo',
-                'schema': 'demo_data'
-            }
+            data_source_configs=[pg_config]
         )
         print(f"Created mind: {mind.name}")
     else:
