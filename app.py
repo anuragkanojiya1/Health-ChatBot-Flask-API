@@ -1,7 +1,7 @@
 import os
 from flask import Flask, request, jsonify
 from openai import OpenAI
-from mindsdb_sdk.utils.mind import create_mind, DatabaseConfig
+from mindsdb_sdk import Client, DatabaseConfig, create_mind
 
 app = Flask(__name__)
 
@@ -11,11 +11,8 @@ api_key = os.getenv('apiKey')
 # MindsDB base URL
 base_url = 'https://llm.mdb.ai/'
 
-# Initialize OpenAI client
-client = OpenAI(
-    api_key=api_key,
-    base_url=base_url
-)
+# Initialize MindsDB client
+client = Client(api_key=api_key, base_url=base_url)
 
 mind_name = '_yodb_mind'
 
@@ -35,9 +32,9 @@ try:
         tables=['house_sales']
     )
 
-    # Check if mind exists
-    existing_minds = client.minds.list()  # Update based on SDK
-    mind_exists = any(mind.name == mind_name for mind in existing_minds.data)
+    # Create or check if mind exists
+    existing_minds = client.minds.list()
+    mind_exists = any(mind.name == mind_name for mind in existing_minds)
 
     if not mind_exists:
         mind = create_mind(
@@ -62,28 +59,28 @@ def chatbot():
     user_input = request.json.get('message')
     
     if not current_thread:
-        current_thread = client.beta.threads.create()
+        current_thread = client.threads.create()
 
     prompt_template = 'You are Deadpool, give comments on the user input like a therapist Deadpool in his sarcastic and psychotic way: {input}'
     formatted_input = prompt_template.format(input=user_input)
 
-    message = client.beta.threads.messages.create(
+    message = client.threads.messages.create(
         thread_id=current_thread.id,
         role="user",
         content=formatted_input
     )
 
-    run = client.beta.threads.runs.create_and_poll(
+    run = client.threads.runs.create_and_poll(
         thread_id=current_thread.id,
         assistant_id=mind_name
     )
 
     if run.status == 'completed':
-        messages = client.beta.threads.messages.list(thread_id=current_thread.id)
+        messages = client.threads.messages.list(thread_id=current_thread.id)
         assistant_response = ""
-        for message in messages.data:
+        for message in messages:
             if message.role == "assistant":
-                assistant_response = message.content[0].text.value
+                assistant_response = message.content
         return jsonify({'response': assistant_response})
     else:
         return jsonify({'response': "Assistant did not complete the request.", 'status': run.status}), 500
@@ -92,7 +89,7 @@ def chatbot():
 def end_session():
     global current_thread
     if current_thread:
-        client.beta.threads.delete(current_thread.id)
+        client.threads.delete(current_thread.id)
         current_thread = None
         return jsonify({'response': "Session ended."})
     return jsonify({'response': "No session to end."}), 400
