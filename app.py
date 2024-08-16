@@ -5,7 +5,7 @@ from mindsdb_sdk.utils.mind import create_mind
 from config import api_key
 import os
 
-api_key = os.getenv('api_key')
+apiKey = os.getenv('apiKey')
 
 app = Flask(__name__)
 
