@@ -2,14 +2,16 @@ import os
 from flask import Flask, request, jsonify
 from openai import OpenAI
 from mindsdb_sdk.utils.mind import create_mind, DatabaseConfig
-from config import api_key
 
 app = Flask(__name__)
 
-# Environment variable for the API key
+# Load environment variable
 api_key = os.getenv('apiKey')
 
+# MindsDB base URL
 base_url = 'https://llm.mdb.ai/'
+
+# Initialize OpenAI client
 client = OpenAI(
     api_key=api_key,
     base_url=base_url
@@ -17,25 +19,24 @@ client = OpenAI(
 
 mind_name = '_yodb_mind'
 
-# Define the database configuration
-pg_config = DatabaseConfig(
-    description='Demo data',
-    type='postgres',
-    connection_args={
-        'user': 'demo_user',
-        'password': 'demo_password',
-        'host': 'samples.mindsdb.com',
-        'port': '5432',
-        'database': 'demo',
-        'schema': 'demo_data'
-    },
-    tables=['house_sales']
-)
-
 # Initialize the mind
 try:
-    # Create or verify the mind
-    existing_minds = client.beta.minds.list()  # Use the updated method to list minds
+    pg_config = DatabaseConfig(
+        description='Whales',
+        type='postgres',
+        connection_args={
+            'user': 'demo_user',
+            'password': 'demo_password',
+            'host': 'samples.mindsdb.com',
+            'port': '5432',
+            'database': 'demo',
+            'schema': 'demo_data'
+        },
+        tables=['house_sales']
+    )
+
+    # Check if mind exists
+    existing_minds = client.minds.list()  # Update based on SDK
     mind_exists = any(mind.name == mind_name for mind in existing_minds.data)
 
     if not mind_exists:
@@ -45,7 +46,7 @@ try:
             api_key=api_key,
             data_source_configs=[pg_config]
         )
-        print(f"Created mind: {mind.name}")
+        print(f"{mind.name} was created successfully. You can now use this Mind using the OpenAI-compatible API.")
     else:
         print(f"Mind {mind_name} already exists. Skipping creation.")
 except Exception as e:
